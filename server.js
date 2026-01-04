@@ -1,45 +1,50 @@
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
-
 const app = express();
-app.use(cors()); // Allows your GitHub site to talk to this server
+
+app.use(cors());
 app.use(express.json());
 
-const PORT = process.env.PORT || 3000;
-
-// Route to get all player data at once
-app.get('/api/player/:username', async (req, res) => {
+app.get('/api/lookup/:username', async (req, res) => {
     try {
         const { username } = req.params;
 
-        // 1. Get User ID
-        const userRes = await axios.post('https://users.roblox.com/v1/usernames/users', {
-            usernames: [username],
-            excludeBannedUsers: true
-        });
+        // 1. Search for User ID (https://users.roblox.com/v1/users/search)
+        const searchRes = await axios.get(`https://users.roblox.com/v1/users/search?keyword=${username}&limit=1`);
+        
+        if (!searchRes.data.data || searchRes.data.data.length === 0) {
+            return res.status(404).json({ error: "User not found" });
+        }
+        const userId = searchRes.data.data[0].id;
 
-        if (!userRes.data.data.length) return res.status(404).json({ error: "User not found" });
-        const user = userRes.data.data[0];
-
-        // 2. Get Presence & Thumbnail in parallel (Faster)
-        const [presenceRes, thumbRes] = await Promise.all([
-            axios.post('https://presence.roblox.com/v1/presence/users', { userIds: [user.id] }),
-            axios.get(`https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${user.id}&size=150x150&format=Png`)
+        // 2. Multi-fetch for Details, Presence, and Thumbnails
+        const [details, presence, thumb] = await Promise.all([
+            // https://users.roblox.com/v1/users/{userId}
+            axios.get(`https://users.roblox.com/v1/users/${userId}`),
+            // https://presence.roblox.com/v1/presence/users
+            axios.post('https://presence.roblox.com/v1/presence/users', { userIds: [userId] }),
+            // https://thumbnails.roblox.com/v1/users/avatar-headshot
+            axios.get(`https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userId}&size=150x150&format=Png&isCircular=false`)
         ]);
 
+        // 3. Construct the response
         res.json({
-            username: user.name,
-            displayName: user.displayName,
-            id: user.id,
-            status: presenceRes.data.userPresences[0].userPresenceType,
-            location: presenceRes.data.userPresences[0].lastLocation,
-            pfp: thumbRes.data.data[0].imageUrl
+            id: userId,
+            username: details.data.name,
+            displayName: details.data.displayName,
+            description: details.data.description,
+            created: details.data.created,
+            status: presence.data.userPresences[0].userPresenceType, // 0: Offline, 1: Online, 2: InGame
+            lastLocation: presence.data.userPresences[0].lastLocation,
+            pfp: thumb.data.data[0].imageUrl
         });
 
     } catch (err) {
-        res.status(500).json({ error: "Roblox API Error" });
+        console.error(err);
+        res.status(500).json({ error: "Roblox API Connection Failed" });
     }
 });
 
-app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
