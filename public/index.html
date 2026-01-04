@@ -2,60 +2,211 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Roblox Search</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* Modern Google Styling Variables */
+        :root {
+            --bg: #ffffff;
+            --text: #202124;
+            --subtext: #70757a;
+            --border: #dfe1e5;
+            --link: #1a0dab;
+            --search-bg: #ffffff;
+            --card-shadow: 0 1px 6px rgba(32,33,36,0.28);
+        }
+
+        /* Dark Mode Variables */
+        [data-theme="dark"] {
+            --bg: #202124;
+            --text: #e8eaed;
+            --subtext: #bdc1c6;
+            --border: #5f6368;
+            --link: #8ab4f8;
+            --search-bg: #303134;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            transition: background 0.3s;
+        }
+
+        /* Theme Toggle */
+        .theme-switch {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            cursor: pointer;
+            padding: 8px 15px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            background: var(--search-bg);
+            color: var(--text);
+        }
+
+        /* Center Layout */
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 15vh;
+        }
+
+        .logo {
+            width: 272px;
+            margin-bottom: 30px;
+            transition: transform 0.3s ease;
+        }
+
+        /* Search Bar */
+        .search-area {
+            width: 90%;
+            max-width: 584px;
+            position: relative;
+        }
+
+        .input-wrapper {
+            display: flex;
+            align-items: center;
+            background: var(--search-bg);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 5px 20px;
+            transition: box-shadow 0.2s;
+        }
+
+        .input-wrapper:hover, .input-wrapper:focus-within {
+            box-shadow: var(--card-shadow);
+            border-color: transparent;
+        }
+
+        input {
+            flex: 1;
+            height: 44px;
+            border: none;
+            background: transparent;
+            color: var(--text);
+            font-size: 16px;
+            outline: none;
+        }
+
+        /* Results Section */
+        #results-container {
+            width: 90%;
+            max-width: 650px;
+            margin-top: 50px;
+            display: none;
+        }
+
+        .result-item {
+            margin-bottom: 30px;
+            animation: fadeIn 0.4s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .cite { font-size: 14px; color: var(--text); margin-bottom: 4px; }
+        .title { font-size: 20px; color: var(--link); text-decoration: none; display: block; }
+        .title:hover { text-decoration: underline; }
+
+        .content-box { display: flex; margin-top: 8px; }
+        .avatar {
+            width: 80px; height: 80px;
+            border-radius: 8px;
+            margin-right: 15px;
+            background: #eee;
+        }
+
+        .details { font-size: 14px; color: var(--subtext); line-height: 1.5; }
+        .status-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+
+        /* Loader */
+        .loader { display: none; margin-top: 20px; color: var(--subtext); }
+    </style>
 </head>
 <body>
 
-    <div class="google-container">
-        <img src="images/logo.png" alt="Roblox" class="main-logo" onerror="this.src='https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png'">
-        
-        <div class="search-bar-container">
-            <input type="text" id="searchInput" placeholder="Search Roblox players..." onkeydown="if(event.key==='Enter') startSearch()">
-            <button onclick="startSearch()" class="search-btn">Roblox Search</button>
+    <button class="theme-switch" onclick="toggleTheme()">🌙 Dark Mode</button>
+
+    <div class="main-container">
+        <img src="images/logo.png" alt="Roblox" class="logo" id="mainLogo" onerror="this.src='https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png'">
+
+        <div class="search-area">
+            <div class="input-wrapper">
+                <input type="text" id="searchInput" placeholder="Search Roblox players..." autocomplete="off">
+            </div>
+            <div id="loader" class="loader">Searching Roblox databases...</div>
         </div>
 
-        <div id="results-area" class="results-area">
+        <div id="results-container">
             </div>
     </div>
 
     <script>
-        async function startSearch() {
-            const query = document.getElementById('searchInput').value;
-            const resultsArea = document.getElementById('results-area');
-            
+        // Theme Logic
+        function toggleTheme() {
+            const body = document.body;
+            const current = body.getAttribute('data-theme');
+            const next = current === 'dark' ? 'light' : 'dark';
+            body.setAttribute('data-theme', next);
+            document.querySelector('.theme-switch').innerText = next === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode';
+        }
+
+        // Search Logic
+        const input = document.getElementById('searchInput');
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') performSearch();
+        });
+
+        async function performSearch() {
+            const query = input.value.trim();
             if (!query) return;
 
-            try {
-                // Change 'localhost:3000' to your Render URL after deploying
-                const response = await fetch(`http://localhost:3000/api/search/${query}`);
-                const data = await response.json();
+            const results = document.getElementById('results-container');
+            const loader = document.getElementById('loader');
 
-                if (data.error) {
-                    resultsArea.innerHTML = `<p style="color:red">No results found for ${query}</p>`;
-                    return;
-                }
+            loader.style.display = 'block';
+            results.style.display = 'none';
+
+            try {
+                // Pointing to your server.js API
+                const res = await fetch(`/api/search/${query}`);
+                const data = await res.json();
+
+                if (data.error) throw new Error(data.error);
 
                 const statusColor = data.status === 2 ? '#00a2ff' : (data.status === 1 ? '#00e676' : '#70757a');
-                const statusText = data.status === 2 ? 'In Game' : (data.status === 1 ? 'Online' : 'Offline');
+                const statusName = data.status === 2 ? 'In Game' : (data.status === 1 ? 'Online' : 'Offline');
 
-                resultsArea.innerHTML = `
-                    <div class="google-result">
-                        <div class="res-url">https://www.roblox.com › users › ${data.id}</div>
-                        <a href="https://www.roblox.com/users/${data.id}/profile" target="_blank" class="res-title">${data.displayName} (@${data.username})</a>
-                        <div class="res-content">
-                            <img src="${data.pfp}" class="res-thumb">
-                            <div class="res-text">
-                                <p><strong>Status:</strong> <span style="color:${statusColor}">${statusText}</span></p>
-                                <p><strong>Location:</strong> ${data.location}</p>
-                                <p><strong>Joined:</strong> ${data.created}</p>
-                                <p class="res-bio">${data.description || 'No bio available.'}</p>
+                results.innerHTML = `
+                    <div class="result-item">
+                        <div class="cite">https://www.roblox.com › users › ${data.id}</div>
+                        <a href="https://www.roblox.com/users/${data.id}/profile" target="_blank" class="title">
+                            ${data.displayName} (@${data.username})
+                        </a>
+                        <div class="content-box">
+                            <img src="${data.pfp}" class="avatar">
+                            <div class="details">
+                                <div><span class="status-dot" style="background:${statusColor}"></span><b>${statusName}</b></div>
+                                <div><b>Joined:</b> ${data.created}</div>
+                                <div style="margin-top:5px;">${data.bio || "No description provided."}</div>
                             </div>
                         </div>
                     </div>
                 `;
+
+                results.style.display = 'block';
             } catch (err) {
-                alert("Error connecting to server!");
+                alert("User not found or Server error.");
+            } finally {
+                loader.style.display = 'none';
             }
         }
     </script>
