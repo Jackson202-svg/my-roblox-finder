@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Roblox Finder</title>
+    <style>
+        :root { --goog-blue: #4285f4; --bg: #ffffff; }
+        body { font-family: 'Product Sans', Arial, sans-serif; background: var(--bg); display: flex; flex-direction: column; align-items: center; padding-top: 10vh; }
+        .logo { font-size: 60px; font-weight: bold; margin-bottom: 30px; }
+        .logo span:nth-child(1) { color: #4285f4; } .logo span:nth-child(2) { color: #ea4335; }
+        .logo span:nth-child(3) { color: #fbbc05; } .logo span:nth-child(4) { color: #4285f4; }
+        .logo span:nth-child(5) { color: #34a853; } .logo span:nth-child(6) { color: #ea4335; }
+
+        .search-box { width: 100%; max-width: 580px; position: relative; }
+        input { width: 100%; padding: 15px 25px; border-radius: 30px; border: 1px solid #dfe1e5; font-size: 16px; outline: none; box-shadow: none; transition: 0.2s; }
+        input:hover, input:focus { box-shadow: 0 1px 6px rgba(32,33,36,0.28); border-color: transparent; }
+
+        #result { margin-top: 40px; width: 100%; max-width: 600px; display: none; border: 1px solid #e0e0e0; border-radius: 12px; padding: 20px; }
+        .pfp { width: 80px; height: 80px; border-radius: 50%; float: left; margin-right: 20px; background: #f0f0f0; }
+        .online-dot { height: 12px; width: 12px; background: #34a853; border-radius: 50%; display: inline-block; margin-left: 10px; }
+        .offline-dot { height: 12px; width: 12px; background: #dadce0; border-radius: 50%; display: inline-block; margin-left: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="logo"><span>R</span><span>o</span><span>b</span><span>l</span><span>o</span><span>x</span></div>
+
+    <div class="search-box">
+        <input type="text" id="query" placeholder="Search Roblox players..." onkeyup="if(event.key==='Enter') doSearch()">
+    </div>
+
+    <div id="result">
+        <img id="res-img" class="pfp" src="">
+        <div class="info">
+            <h2 style="margin:0;"><span id="res-display"></span> <span id="res-dot"></span></h2>
+            <p id="res-user" style="color: #70757a; margin: 5px 0;"></p>
+            <p id="res-bio" style="font-size: 14px; line-height: 1.5;"></p>
+            <p id="res-loc" style="font-weight: bold; color: #4285f4;"></p>
+        </div>
+    </div>
+
+    <script>
+        async function doSearch() {
+            const user = document.getElementById('query').value;
+            const resDiv = document.getElementById('result');
+            
+            // Note: Change to your Render URL when deploying
+            const response = await fetch(`http://localhost:3000/api/search/${user}`);
+            const data = await response.json();
+
+            if (data.error) return alert("User not found");
+
+            resDiv.style.display = 'block';
+            document.getElementById('res-img').src = data.image;
+            document.getElementById('res-display').innerText = data.displayName;
+            document.getElementById('res-user').innerText = "@" + data.name;
+            document.getElementById('res-bio').innerText = data.bio;
+            document.getElementById('res-loc').innerText = data.location ? "Currently: " + data.location : "";
+            document.getElementById('res-dot').className = data.status > 0 ? 'online-dot' : 'offline-dot';
+        }
+    </script>
+</body>
+</html>
